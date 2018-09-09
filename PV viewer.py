@@ -29,6 +29,8 @@ from shapely.geometry import Polygon
 import cv2
 import itertools
 
+from config import TILE_SIZE, DATA_FOLDER, SAT_IMAGE_FOLDER, MASK_IMAGE_FOLDER, TILES_FOLDER
+
 # %matplotlib inline
 # -
 
@@ -63,7 +65,7 @@ def read_geojson(geojson_file):
 
 # + {}
 # Load the PV locations
-PV_locations = read_geojson("./Data/SolarArrayPolygons.geojson")
+PV_locations = read_geojson(DATA_FOLDER + "/SolarArrayPolygons.geojson")
 
 # Convert strings into lists of lists
 PV_locations.polygon_vertices_pixels = PV_locations.polygon_vertices_pixels.apply(lambda row: json.loads(row))
@@ -86,7 +88,7 @@ def plot_geotiff(image_id):
     city = PV_locations[(PV_locations.image_name == image_id)].iloc[0].city
     pv_arrays_in_image = PV_locations[(PV_locations.image_name == image_id)].sort_values("area_meters", ascending=False)
 
-    fname = './Data/{0}/{1}.tif'.format(city, image_id)
+    fname = DATA_FOLDER + '/{0}/{1}.tif'.format(city, image_id)
 
     img = matplotlib.image.imread(fname)
 
@@ -122,12 +124,12 @@ def plotly_geotiff(image_id, plot_width=800, plot_height=800):
     import plotly.graph_objs as go
     from PIL import Image
     
-    original_img_width, original_img_height = Image.open("Data/{0}/{1}.tif".format(city, image_id)).size
+    original_img_width, original_img_height = Image.open(DATA_FOLDER + "/{0}/{1}.tif".format(city, image_id)).size
 
     py.init_notebook_mode()
 
     # Original size of image
-    img_width, img_height = Image.open("Data/{0}/{1}.jpg".format(city, image_id)).size
+    img_width, img_height = Image.open(DATA_FOLDER + "/{0}/{1}.jpg".format(city, image_id)).size
     scale_factor = 1
 
     layout= go.Layout(
@@ -150,7 +152,7 @@ def plotly_geotiff(image_id, plot_width=800, plot_height=800):
                     #width=plot_width,
         margin = {'l': 0, 'r': 0, 't': 30, 'b': 0},
                     images= [dict(
-                        source="Data/{0}/{1}.jpg".format(city, image_id),
+                        source=DATA_FOLDER + "/{0}/{1}.jpg".format(city, image_id),
                         x= 0,
                         sizex=img_width*scale_factor,
                         y=0,#img_height*scale_factor,
@@ -189,7 +191,7 @@ def get_image(image_id, filetype="jpg"):
     # First get which city the image belongs to
     city = PV_locations[(PV_locations.image_name == image_id)].iloc[0].city
 
-    image = np.array(Image.open("Data/{0}/{1}.{2}".format(city, image_id, filetype)))
+    image = np.array(Image.open(DATA_FOLDER + "/{0}/{1}.{2}".format(city, image_id, filetype)))
     if image.shape[2] == 4:
         print("{0} {1}.{2}: This image has a 4th dimension!".format(city, image_id, filetype))
         return image[:,:,:3]
@@ -198,7 +200,7 @@ def get_image(image_id, filetype="jpg"):
 # Get a random image from the dataset and plot it with the PV locations marked on
 
 # Here's a random satellite image from the dataset
-random_image = PV_locations[PV_locations.city.isin(["Modesto", "Oxnard"])].sample(n=1).iloc[0]["image_name"]
+random_image = PV_locations.sample(n=1).iloc[0]["image_name"]
 # Plot it with MPL
 plot_geotiff(random_image)
 
@@ -285,14 +287,58 @@ def tiles_for_image(image_name, tile_size):
             "ground_truth": tile[1],
             "image_name": image_name} for tile in zip(sat_tiles, mask_tiles))
 
+# + {}
 # Here's a list of all image names
 all_images = PV_locations.image_name.unique()
-tile_size = (888,888)
 # Get tiles of all images
 # The chain function merges all the iterables together into one stream
-all_tiles = itertools.chain.from_iterable((tiles_for_image(image, tile_size) for image in all_images))
+all_tiles = itertools.chain.from_iterable((tiles_for_image(image, TILE_SIZE) for image in all_images))
 
-tile = next(all_tiles)
+
+# itertools.tee basically caches the generator so it can be used multiple times independently
+#all_tiles_display, all_tiles_save = itertools.tee(all_tiles)
+# -
+
+# ### Separate tiles into train and test sets
+
+# + {}
+import random
+
+def generate_random_uuid():
+    
+    uid_chars = ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+             'v', 'w', 'x', 'y', 'z','1','2','3','4','5','6','7','8','9','0')
+    uid_length=8
+    
+    c=''
+    for i in range(0,uid_length):
+        c+=random.choice(uid_chars)
+    return c
+
+# + {}
+import os
+from PIL import Image
+
+try:
+    os.rmdir(SAT_IMAGE_FOLDER)
+    os.rmdir(MASK_IMAGE_FOLDER)
+except FileNotFoundError:
+    pass
+
+os.makedirs(SAT_IMAGE_FOLDER, exist_ok=True)
+os.makedirs(MASK_IMAGE_FOLDER, exist_ok=True)
+
+
+# Iterate over all tiles and save em
+for tile in itertools.islice(all_tiles, 10000):
+    # Generate random id
+    uuid = generate_random_uuid()
+    # Save satellite and mask images
+    Image.fromarray(tile["satellite_image"]).save(TILES_FOLDER + SAT_IMAGE_FOLDER + "/{0}-{1}.png".format(tile["image_name"], uuid))
+    Image.fromarray(tile["ground_truth"].astype(np.int8)).save(TILES_FOLDER + MASK_IMAGE_FOLDER + "/{0}-{1}.png".format(tile["image_name"], uuid))
+# -
+
+tile = next(all_tiles_display)
 fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(15,5))
 plt.suptitle(tile["image_name"])
 ax1.imshow(tile["satellite_image"])
@@ -300,14 +346,15 @@ ax2.imshow(tile["ground_truth"], vmin=0, vmax=1)
 plt.axis("scaled")
 plt.show()
 
-# ### Calculate fitted multivariate gaussian distribution for RGB colour distribution of all PV pixels in dataset
+# ### Calculate multivariate gaussian distribution for RGB colour distribution of all PV pixels in dataset
+# * This is for prescreening
 
 # + {}
 from scipy.stats import multivariate_normal
 import pickle
 
 try:
-    PV_multivariate_RGB, PV_mean, PV_covariance = pickle.load(open("multivariate.p", "rb"))
+    PV_multivariate_RGB, PV_mean, PV_covariance = pickle.load(open(DATA_FOLDER + "/multivariate.p", "rb"))
 except FileNotFoundError:
     all_pv_pixels = []
 
@@ -343,7 +390,7 @@ except FileNotFoundError:
 
     import pickle
     # Save model to file
-    pickle.dump((PV_multivariate_RGB, PV_mean, PV_covariance), open("multivariate.p", "wb"))
+    pickle.dump((PV_multivariate_RGB, PV_mean, PV_covariance), open(DATA_FOLDER + "/multivariate.p", "wb"))
 # -
 
 PV_multivariate_RGB.logpdf(PV_mean)
@@ -378,6 +425,3 @@ region = pic[y:y+height, x:x+width]
 
 # Calculate mean colour for each detected MSER region
 mean_rgb = np.apply_over_axes(np.mean, region, (0,1))
-# -
-
-
