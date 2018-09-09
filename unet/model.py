@@ -209,6 +209,8 @@ def get_loss_func(loss_mode):
     loss_func = 'binary_crossentropy'
     if loss_mode == "bcedice":
         loss_func = losses.dice_coef_loss_bce
+    elif loss_mode == "tversky":
+        loss_func = losses.tversky_loss
 
     print("loss:", loss_func)
     return loss_func

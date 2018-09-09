@@ -17,28 +17,18 @@
 #     version: 3.6.6
 # ---
 
+# import os
+# os.chdir("./unet")
 from model import get_unet
 from config import *
 from unet_config import Config
 import os
+from keras.callbacks import ModelCheckpoint, TensorBoard
 
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
-# Test if on GPU or not (shows up in terminal)
-import tensorflow as tf
-# Creates a graph.
-a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
-b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
-c = tf.matmul(a, b)
-# Creates a session with log_device_placement set to True.
-sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-# Runs the op.
-print(sess.run(c))
-
-
 from keras.preprocessing.image import ImageDataGenerator
 
-# def get_dataset(image_folder):
 import glob
 import os
 from PIL import Image
@@ -47,10 +37,10 @@ from matplotlib import pyplot as plt
 
 def get_image_data(sample=False):
     # Get list of files
-    satellite_images = glob.glob(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/*.png")
+    satellite_images = glob.glob(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/*.png")
     np.random.shuffle(satellite_images)
     if sample:
-        num_images_to_get = max(1000, len(satellite_images)/100)
+        num_images_to_get = max(1000, int(len(satellite_images)/100))
     else:
         num_images_to_get = len(satellite_images)
 
@@ -60,24 +50,27 @@ def get_image_data(sample=False):
 
     for i, image in enumerate(satellite_images[:num_images_to_get]):
         image = image.split("/")[-1]
-        satellite_stacked[i] = np.array(Image.open(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + image))
-        mask_stacked[i] = np.array(Image.open(TRAIN_IMAGE_FOLDER + MASK_IMAGE_FOLDER + image)).reshape(224,224, 1)
+        satellite_stacked[i] = np.array(Image.open(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/" + image))
+        mask_stacked[i] = np.array(Image.open(TRAIN_IMAGE_FOLDER + MASK_IMAGE_FOLDER + "/0/" + image)).reshape(224,224, 1)
 
     return satellite_stacked, mask_stacked
 
 # we create two instances with the same arguments
-data_gen_args = dict(featurewise_center=True, featurewise_std_normalization=True)
+data_gen_args = dict(featurewise_center=True, featurewise_std_normalization=True, validation_split=0.2)
 sat_image_datagen = ImageDataGenerator(**data_gen_args)
 mask_datagen = ImageDataGenerator(**data_gen_args)
+test_sat_image_datagen = ImageDataGenerator(**data_gen_args)
+test_mask_datagen = ImageDataGenerator(**data_gen_args)
 
 # Provide the same seed and keyword arguments to the fit and flow methods
 seed = 42
+#np.random.seed(seed)
 
 # first provide a sample of images for featurewise normalisation
 X_sample, y_sample = get_image_data(sample=True)
 sat_image_datagen.fit(X_sample, augment=False, seed=seed)
 mask_datagen.fit(y_sample, augment=False, seed=seed)
-TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER
+
 sat_image_generator = sat_image_datagen.flow_from_directory(
     TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER,
     target_size=TILE_SIZE,
@@ -94,13 +87,33 @@ mask_generator = mask_datagen.flow_from_directory(
     class_mode=None,
     seed=seed)
 
-import itertools
-
 # combine generators into one which yields image and masks
-train_generator = itertools.islice(zip(sat_image_generator, mask_generator), 10)
+train_generator = zip(sat_image_generator, mask_generator)
 
-model = get_unet(Config(), loss_mode="bce")
+config_unet = Config()
+
+os.makedirs(WEIGHTS_FOLDER, exist_ok=True)
+model_checkpoint = ModelCheckpoint(os.path.join(WEIGHTS_FOLDER,'unet_2.hdf5'), monitor='loss', save_best_only=True)
+tb_callback = TensorBoard(log_dir=LOGS_FOLDER, histogram_freq=0, batch_size=config_unet.BATCH_SIZE,
+                          write_graph=True, write_grads=False, write_images=True,
+                          embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
+# start_time = time.time()
+
+model = get_unet(config_unet, loss_mode="tversky")
 model.fit_generator(
     train_generator,
-    steps_per_epoch=20,
-    epochs=1, verbose=True)
+    epochs=config_unet.EPOCS, verbose=True,
+    steps_per_epoch=200,
+    shuffle=True,
+    callbacks=[model_checkpoint, tb_callback])
+
+## Testing the model
+"""
+config_unet = Config()
+model = get_unet(config_unet, loss_mode="tversky")
+model.load_weights(WEIGHTS_FOLDER + "/unet_tmp.hdf5")
+
+sat, mask = get_image_data(sample=True)
+plt.imshow(mask[0].reshape(224,224))
+plt.imshow(model.predict(sat[0].reshape(1, 224,224,3)).reshape(224,224))
+"""

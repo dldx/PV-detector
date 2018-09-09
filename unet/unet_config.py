@@ -6,9 +6,9 @@ class Config(object):
     ISZ = 224
     N_CHANNELS = 3
 
-    EPOCS = 5
+    EPOCS = 20
     N_STEPS = 5
-    BATCH_SIZE = 16
+    BATCH_SIZE = 32
 
 
     AMT_TRAIN = 60
