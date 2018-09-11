@@ -15,8 +15,8 @@ class Config(object):
     AMT_VAL = 10
     AMT_SMALL_VAL = 10
 
-    TRAIN_DIR = "/home/durand/Stuff/Data_Science/PV_detection/Data/tiles/train/0/"
-    VAL_DIR = "/home/durand/Stuff/Data_Science/PV_detection/Data/tiles/test/0/"
+    TRAIN_DIR = "/floyd/home/Data/tiles/PV/train/0/"
+    VAL_DIR = "/floyd/home/Data/tiles/test/0/"
     SMAL_VAL_DIR = 'D:\\data\\LOL\\processedraw\\4_class_smaller\\test'
 
 
@@ -38,12 +38,12 @@ class Config(object):
 
     def __init__(self):
         """Set values of computed attributes."""
-        # Effective batch size
-        self.BATCH_SIZE = self.IMAGES_PER_GPU * self.GPU_COUNT
+        pass# Effective batch size
+        #self.BATCH_SIZE = self.IMAGES_PER_GPU * self.GPU_COUNT
 
         # Input image size
-        self.IMAGE_SHAPE = np.array(
-            [self.IMAGE_MAX_DIM, self.IMAGE_MAX_DIM, 3])
+        #self.IMAGE_SHAPE = np.array(
+         #   [self.IMAGE_MAX_DIM, self.IMAGE_MAX_DIM, 3])
 
 
 

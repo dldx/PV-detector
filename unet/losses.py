@@ -13,7 +13,6 @@ def dice_coef_loss(y_true, y_pred):
 # alpha=beta=0.5 : dice coefficient
 # alpha=beta=1   : tanimoto coefficient (also known as jaccard)
 # alpha+beta=1   : produces set of F*-scores
-# implemented by E. Moebel, 06/04/18
 def tversky_loss(y_true, y_pred):
     alpha = 0.5
     beta  = 0.5

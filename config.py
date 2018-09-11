@@ -1,13 +1,13 @@
-DATA_FOLDER = "/home/durand/Stuff/Data_Science/PV_detection/Data/"
+DATA_FOLDER = "/floyd/home/Data/"
 
-TILES_FOLDER = DATA_FOLDER + "/tiles/"
+TILES_FOLDER = DATA_FOLDER + "/tiles/PV/"
 
 SAT_IMAGE_FOLDER = "/satellites/"
 MASK_IMAGE_FOLDER = "/masks/"
 
 TRAIN_IMAGE_FOLDER = TILES_FOLDER + "/train/"
 TEST_IMAGE_FOLDER = TILES_FOLDER + "/test/"
-TRAIN_TEST_RATIO = 0.3
+TRAIN_TEST_RATIO = 0.2
 
 WEIGHTS_FOLDER = DATA_FOLDER + "/weights/"
 LOGS_FOLDER = DATA_FOLDER + "/logs/"
