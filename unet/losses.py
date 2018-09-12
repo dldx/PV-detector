@@ -14,8 +14,8 @@ def dice_coef_loss(y_true, y_pred):
 # alpha=beta=1   : tanimoto coefficient (also known as jaccard)
 # alpha+beta=1   : produces set of F*-scores
 def tversky_loss(y_true, y_pred):
-    alpha = 0.5
-    beta  = 0.5
+    alpha = 0.3
+    beta  = 0.7
 
     ones = K.ones(K.shape(y_true))
     p0 = y_pred      # proba that voxels are class i
