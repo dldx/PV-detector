@@ -1,5 +1,7 @@
 Data/*
-external/*
+
+*.p
+
 # Created by https://www.gitignore.io/api/linux,python,jupyternotebook,node
 .tags*
 ### JupyterNotebook ###

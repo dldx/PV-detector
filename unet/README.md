@@ -1,7 +1,7 @@
 ## Unet based model training and inference
-This folder contains code for sustainbale farming practices detection using Unet.
+Most of the code in this folder has been poached from [this repository by Olga Liakhovich](https://github.com/olgaliak/segmentation-unet-maskrcnn)
 
-Credits: [olgaliak](https://github.com/olgaliak/segmentation-unet-maskrcnn)
+I will be all files that aren't required for the PV detection model shortly.
 
 ## Prerequisites
 - Python 3.5+
@@ -9,23 +9,9 @@ Credits: [olgaliak](https://github.com/olgaliak/segmentation-unet-maskrcnn)
 - Tensorflow 1.6+
 - Keras 2.0.8+
 
-## Code structure
-
-- main.py
-
-This is the entry point, supports _--runmode_ 'train' and 'test':
-### Training
-`python main.py --runmode=train --lossmode=bce --cudadev=0 --runprefix=tt3`
-### Testing
-`python main.py --runmode=test --lossmode=bce --cudadev=0 --runprefix=tt3`
-
 - unet_config.py
 
 Confiuration for training and testing the model. Here is the place to provide file path to the data, images dimentions, number of epocs and etc.
-
-- trainer.py
-
-Instantiates the model and trains for the specified number of steps\epochs.
 
 - model.py
 
@@ -38,11 +24,3 @@ This file contains helper functions for model evaluation.
 - losses.py
 
 The place were custom loss functions (Dice coefficient based) reside.
-
-- dataset_helper.py and dataset_reader.py
-
-Here all data input related routines go.
-
-- scorer.py
-
-This file has heper functions to get predictions from the trained model.
