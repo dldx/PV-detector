@@ -37,7 +37,7 @@ I am using data gathered by [Kyle Bradbury and co-workers](https://www.nature.co
 
 I would still like to improve this project in several ways. These approaches will be implemented shortly:
 * **larger training set:** Right now, we are only training on images that contain at least 1px of solar panel, but including more images will help.
-* **image augmentation:** rotating, skewing, scaling and corrupting the training images prior to training
+* **image augmentation:** rotating, skewing, scaling and corrupting the training images prior to training to improve accuracy on other satellites
 * **hyper-parameter optimisation:** Investigate if [Tversky loss](https://arxiv.org/pdf/1706.05721.pdf) can improve results (preliminary experiments I made don't suggest that).
 * **post-prediction stitcher:** Incorporating a tile stitcher such as [this one](https://github.com/Vooban/Smoothly-Blend-Image-Patches)
 * **pre-screening:** Right now, we run all images through the model to get prediction masks. However, in many instances, we can pre-screen images (or regions of a large image) using a much simpler computer vision model such as [MSER](https://www.researchgate.net/publication/300416092_Automatic_solar_photovoltaic_panel_detection_in_satellite_imagery) to save time.
