@@ -21,7 +21,7 @@ This model has a *mean dice coefficient* of 0.7 over the validation image set, w
 
 ## The Dataset
 
-I am using data gathered by [Kyle Bradbury and co-workers](https://www.nature.com/articles/sdata2016106). They provide high resolution (30 cm) RGB satellite imag—s for 4 Californian cities - Fresno, Oxnard, Modesto and Stockton, along with hand-labelled polygons for every PV installation in each image. While I have not included the dataset in this repository, you can run the `download_data.sh` script to get it all (about 50GB) from FigShare.
+I am using data gathered by [Kyle Bradbury and co-workers](https://www.nature.com/articles/sdata2016106). They provide high resolution (30 cm) RGB satellite images for four Californian cities - Fresno, Oxnard, Modesto and Stockton, along with hand-labelled polygons for every PV installation in each image. While I have not included the dataset in this repository, you can run the `download_data.sh` script to get it all (about 50GB) from FigShare.
 
 ![complete satellite image with PV locations](complete_sat_image.png)
 
