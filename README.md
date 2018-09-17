@@ -4,7 +4,7 @@ A neural network based pipeline for identifying solar panels in satellite image 
 
 **STATUS:** functional proof of concept
 
-My goal is to be able to input any satellite image of sufficiently high resolution and get back a list of PV (photovoltaic) locations as well as polygon shapes. We're not quite there yet but the machine learning part works well fine now.
+My goal is to be able to input any satellite image of sufficiently high resolution and get back a list of PV (photovoltaic) locations as well as polygon shapes. We're not quite there yet but the machine learning part works well now.
 
 ---
 
