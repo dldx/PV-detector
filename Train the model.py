@@ -50,9 +50,9 @@ if num_testing_images == 0 or num_training_images == 0:
 
 def get_image_data(num_images_to_get=32, normalise=True, image_folder = config.TRAIN_IMAGE_FOLDER, augment=False):
     # Get list of files
-    satellite_images = glob.glob(image_folder + SAT_IMAGE_FOLDER + "/0/*.png")
+    satellite_images = glob.glob(image_folder + config.SAT_IMAGE_FOLDER + "/0/*.png")
     if len(satellite_images) == 0:
-        raise FileNotFoundError(image_folder + SAT_IMAGE_FOLDER + " doesn't contain any images!")
+        raise FileNotFoundError(image_folder + config.SAT_IMAGE_FOLDER + " doesn't contain any images!")
     if normalise:
         # first provide a sample of images for featurewise normalisation
         X_sample, y_sample = next(get_image_data(num_images_to_get=1000, normalise=False))
@@ -75,8 +75,8 @@ def get_image_data(num_images_to_get=32, normalise=True, image_folder = config.T
 
         for i, image in enumerate(satellite_images[:num_images_to_get]):
             image = image.split("/")[-1]
-            satellite_stacked[i] = np.array(Image.open(image_folder + SAT_IMAGE_FOLDER + "/0/" + image))
-            mask_stacked[i] = np.array(Image.open(image_folder + MASK_IMAGE_FOLDER + "/0/" + image)).reshape(224,224, 1)/255.0
+            satellite_stacked[i] = np.array(Image.open(image_folder + config.SAT_IMAGE_FOLDER + "/0/" + image))
+            mask_stacked[i] = np.array(Image.open(image_folder + config.MASK_IMAGE_FOLDER + "/0/" + image)).reshape(224,224, 1)/255.0
 
         if augment:
             augmenters = iaa.SomeOf((0, None), [
