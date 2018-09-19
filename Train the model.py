@@ -28,9 +28,9 @@ import os
 sys.path.append("unet/")
 
 from config import *
-from unet_config import Config
 from model import get_vgg_7conv
 
+from imgaug import augmenters as iaa
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from keras.optimizers import Adam
 import glob
@@ -42,14 +42,14 @@ import numpy as np
 #os.environ['CUDA_VISIBLE_DEVICES'] = ''
 # -
 
-config_unet = Config()
-
 num_training_images = len(glob.glob(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/*.png"))
 num_testing_images = len(glob.glob(TEST_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/*.png"))
 
-def get_image_data(num_images_to_get=32, normalise=True, image_folder = TRAIN_IMAGE_FOLDER):
+def get_image_data(num_images_to_get=32, normalise=True, image_folder = TRAIN_IMAGE_FOLDER, augment=False):
     # Get list of files
     satellite_images = glob.glob(image_folder + SAT_IMAGE_FOLDER + "/0/*.png")
+    if len(satellite_images) == 0:
+        raise FileNotFoundError(image_folder + SAT_IMAGE_FOLDER + " doesn't contain any images!")
     if normalise:
         # first provide a sample of images for featurewise normalisation
         X_sample, y_sample = next(get_image_data(num_images_to_get=1000, normalise=False))
@@ -75,6 +75,16 @@ def get_image_data(num_images_to_get=32, normalise=True, image_folder = TRAIN_IM
             satellite_stacked[i] = np.array(Image.open(image_folder + SAT_IMAGE_FOLDER + "/0/" + image))
             mask_stacked[i] = np.array(Image.open(image_folder + MASK_IMAGE_FOLDER + "/0/" + image)).reshape(224,224, 1)/255.0
 
+        if augment:
+            augmenters = iaa.SomeOf((0, None), [
+                iaa.WithChannels(0, iaa.Add((-20, 20))),
+                iaa.WithChannels(1, iaa.Add((-20, 20))),
+                iaa.WithChannels(2, iaa.Add((-20, 20))),
+                iaa.Sharpen(alpha=0.1),
+                iaa.GaussianBlur(sigma=(0, 2)),
+                iaa.AdditiveGaussianNoise(scale=(0,0.05*255)),
+            ])
+            satellite_stacked = augmenters.augment_images(satellite_stacked)
         if normalise:
             satellite_stacked = (satellite_stacked - mean_sat_color)/np.sqrt(variance_sat_color)
             #mask_stacked = (mask_stacked - mean_mask_color)/np.sqrt(variance_mask_color)
@@ -95,14 +105,14 @@ def dice_coef_loss(y_true, y_pred):
 
 os.makedirs(WEIGHTS_FOLDER, exist_ok=True)
 model_checkpoint = ModelCheckpoint(WEIGHTS_FOLDER + 'intermediate_models.h5', monitor='dice_coef', save_best_only=True)
-tb_callback = TensorBoard(log_dir=LOGS_FOLDER, histogram_freq=0, batch_size=config_unet.BATCH_SIZE,
+tb_callback = TensorBoard(log_dir=LOGS_FOLDER, histogram_freq=0, batch_size=config.BATCH_SIZE,
                           write_graph=True, write_grads=False, write_images=True,
                           embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
 
 # + {}
 import metrics
 
-model = get_vgg_7conv(config_unet.ISZ, config_unet.N_CHANNELS, config_unet.NUM_CLASSES)
+model = get_vgg_7conv(config.ISZ, config.N_CHANNELS, config.NUM_CLASSES)
 
 model.compile(
     optimizer=Adam(lr=0.001),
@@ -114,11 +124,11 @@ model.compile(
 # -
 
 model.fit_generator(
-    get_image_data(num_images_to_get=config_unet.BATCH_SIZE, image_folder=TRAIN_IMAGE_FOLDER),
+    get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=TRAIN_IMAGE_FOLDER),
     epochs=80, verbose=True,
-    steps_per_epoch=int(num_training_images/config_unet.BATCH_SIZE)//50*50,
-    validation_data=get_image_data(num_images_to_get=config_unet.BATCH_SIZE, image_folder=TEST_IMAGE_FOLDER),
-    validation_steps=int(num_testing_images/config_unet.BATCH_SIZE)//50*50,
+    steps_per_epoch=int(num_training_images/config.BATCH_SIZE)//50*50,
+    validation_data=get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=TEST_IMAGE_FOLDER),
+    validation_steps=int(num_testing_images/config.BATCH_SIZE)//50*50,
     callbacks=[model_checkpoint,
                tb_callback,
                ReduceLROnPlateau(monitor='val_dice_coef', factor=0.5, patience=5, min_lr=1e-9, epsilon=0.00001, verbose=1, mode='max')])
