@@ -27,7 +27,7 @@ import os
 # Add unet model folder
 sys.path.append("unet/")
 
-from config import *
+import config
 from model import get_vgg_7conv
 
 from imgaug import augmenters as iaa
@@ -42,10 +42,13 @@ import numpy as np
 #os.environ['CUDA_VISIBLE_DEVICES'] = ''
 # -
 
-num_training_images = len(glob.glob(TRAIN_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/*.png"))
-num_testing_images = len(glob.glob(TEST_IMAGE_FOLDER + SAT_IMAGE_FOLDER + "/0/*.png"))
+num_training_images = len(glob.glob(config.TRAIN_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/*.png"))
+num_testing_images = len(glob.glob(config.TEST_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/*.png"))
 
-def get_image_data(num_images_to_get=32, normalise=True, image_folder = TRAIN_IMAGE_FOLDER, augment=False):
+if num_testing_images == 0 or num_training_images == 0:
+    print("WARNING: no images detected")
+
+def get_image_data(num_images_to_get=32, normalise=True, image_folder = config.TRAIN_IMAGE_FOLDER, augment=False):
     # Get list of files
     satellite_images = glob.glob(image_folder + SAT_IMAGE_FOLDER + "/0/*.png")
     if len(satellite_images) == 0:
@@ -103,9 +106,9 @@ def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 # -
 
-os.makedirs(WEIGHTS_FOLDER, exist_ok=True)
-model_checkpoint = ModelCheckpoint(WEIGHTS_FOLDER + 'intermediate_models.h5', monitor='dice_coef', save_best_only=True)
-tb_callback = TensorBoard(log_dir=LOGS_FOLDER, histogram_freq=0, batch_size=config.BATCH_SIZE,
+os.makedirs(config.WEIGHTS_FOLDER, exist_ok=True)
+model_checkpoint = ModelCheckpoint(config.WEIGHTS_FOLDER + 'intermediate_models_with_aug.h5', monitor='dice_coef', save_best_only=True)
+tb_callback = TensorBoard(log_dir=config.LOGS_FOLDER, histogram_freq=0, batch_size=config.BATCH_SIZE,
                           write_graph=True, write_grads=False, write_images=True,
                           embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
 
@@ -116,7 +119,7 @@ model = get_vgg_7conv(config.ISZ, config.N_CHANNELS, config.NUM_CLASSES)
 
 model.compile(
     optimizer=Adam(lr=0.001),
-     loss=dice_coef_loss,
+    loss=dice_coef_loss,
     metrics=[
         metrics.jaccard_coef, metrics.jacard_coef_flat,
         metrics.jaccard_coef_int, metrics.dice_coef, 'accuracy'
@@ -124,13 +127,13 @@ model.compile(
 # -
 
 model.fit_generator(
-    get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=TRAIN_IMAGE_FOLDER),
+    get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=config.TRAIN_IMAGE_FOLDER),
     epochs=80, verbose=True,
     steps_per_epoch=int(num_training_images/config.BATCH_SIZE)//50*50,
-    validation_data=get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=TEST_IMAGE_FOLDER),
+    validation_data=get_image_data(num_images_to_get=config.BATCH_SIZE, image_folder=config.TEST_IMAGE_FOLDER),
     validation_steps=int(num_testing_images/config.BATCH_SIZE)//50*50,
     callbacks=[model_checkpoint,
                tb_callback,
                ReduceLROnPlateau(monitor='val_dice_coef', factor=0.5, patience=5, min_lr=1e-9, epsilon=0.00001, verbose=1, mode='max')])
 
-model.save(WEIGHTS_FOLDER + "/model.h5")
+model.save(WEIGHTS_FOLDER + "/model_with_aug.h5")
