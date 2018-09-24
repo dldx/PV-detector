@@ -17,9 +17,9 @@
 #     version: 3.6.6
 # ---
 
-DATA_FOLDER = "/home/durand/Stuff/Data_Science/PV_detection/Data"
+DATA_FOLDER = "/floyd/home/Data"
 
-TILES_FOLDER = DATA_FOLDER + "/tiles/Only_PV_Tiles/"
+TILES_FOLDER = DATA_FOLDER + "/tiles/PV/"
 
 SAT_IMAGE_FOLDER = "/satellites/"
 MASK_IMAGE_FOLDER = "/masks/"
