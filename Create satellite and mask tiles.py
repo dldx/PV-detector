@@ -20,6 +20,7 @@
 # ---
 
 # + {}
+from skimage import draw
 import json
 import numpy as np
 import pandas as pd
@@ -269,15 +270,18 @@ def get_mask(image, image_name):
     """Return a mask image containing all PV locations"""
     
     # Create an empty mask to hold PV locations
-    mask = np.zeros(image.shape[:2]).astype(np.int32)
+    mask = np.zeros((image.shape[1], image.shape[0])).astype(np.int32)
 
     # Loop over all PV polygons in this image
     for polygon in PV_locations[PV_locations.image_name == image_name]["polygon_vertices_pixels"].tolist():
         # Feed polygon into OpenCV to draw onto mask
-        polygon = np.array(polygon).astype(np.int32)
-        cv2.fillConvexPoly(mask, polygon, 1)
-        
-    return mask
+        polygon_coords = np.array(polygon).astype(np.int32).T
+        rr, cc = draw.polygon(np.clip(polygon_coords[0], 0, mask.shape[0]), np.clip(polygon_coords[1], 0, mask.shape[1]))
+        try:
+            mask[rr, cc] = 1
+        except:
+            return image_name
+    return mask.T
 
 def tiles_for_image(image_name, tile_size):
     """Returns a dictionary for each tile in
@@ -293,9 +297,11 @@ def tiles_for_image(image_name, tile_size):
             "ground_truth": tile[1],
             "image_name": image_name} for tile in zip(sat_tiles, mask_tiles))
 
+# ### Export satellite and mask tiles as pngs, storing only the ones with PV pixels in them
+
 # + {}
 # Here's a list of all image names
-all_images = PV_locations.image_name.unique()[408:]
+all_images = PV_locations.image_name.unique()
 # Get tiles of all images
 # The chain function merges all the iterables together into one stream
 all_tiles = itertools.chain.from_iterable((tiles_for_image(image, TILE_SIZE) for image in all_images))
@@ -303,9 +309,6 @@ all_tiles = itertools.chain.from_iterable((tiles_for_image(image, TILE_SIZE) for
 
 # itertools.tee basically caches the generator so it can be used multiple times independently
 #all_tiles_display, all_tiles_save = itertools.tee(all_tiles)
-# -
-
-# ### Separate tiles into train and test sets
 
 # + {}
 import random
@@ -336,36 +339,27 @@ except FileNotFoundError:
 os.makedirs(TILES_FOLDER + SAT_IMAGE_FOLDER, exist_ok=True)
 os.makedirs(TILES_FOLDER + MASK_IMAGE_FOLDER, exist_ok=True)
 
-# Keep track of all the images
-tile_image_names = []
-original_image_names = []
-num_pv_pixels = []
-
 # Iterate over all tiles and save em
-for tile in all_tiles:#itertools.islice(all_tiles, 100):
-    # Generate random id
-    uuid = generate_random_uuid()
-    tile_image_name = "{0}-{1}.png".format(tile["image_name"], uuid)
-    
-    # Save satellite and mask images
-    Image.fromarray(tile["satellite_image"]).save(TILES_FOLDER + SAT_IMAGE_FOLDER + "/" + tile_image_name)
-    Image.fromarray(tile["ground_truth"].astype(np.int8)).save(TILES_FOLDER + MASK_IMAGE_FOLDER + "/" + tile_image_name)
-    # Save details about tiles
-    tile_image_names.append(tile_image_name)
-    original_image_names.append(tile["image_name"])
-    # Save counts of PV pixels in the tile
+for tile in all_tiles:#itertools.islice(all_tiles, 1000):
+    # How many PV pixels are there in the tile?
     classes, counts = np.unique(tile["ground_truth"], return_counts=True)
     if len(classes) == 2:
-        num_pv_pixels.append(counts[1])
+        num_pv_pixels = counts[1]
     else:
-        num_pv_pixels.append(0)
+        num_pv_pixels = 0
     
-# Save tile details to csv
-tile_df = pd.DataFrame({"tile_image_names": tile_image_names,
-                        "original_image_names": original_image_names,
-                       "num_pv_pixels": num_pv_pixels})
+    ## Only save tiles which have at least one PV pixel because otherwise the dataset will be too imbalanced
+    if num_pv_pixels > 0:
+        # Generate random id
+        uuid = generate_random_uuid()
+        tile_image_name = "{0}-{1}.png".format(tile["image_name"], uuid)
 
-tile_df.to_csv(DATA_FOLDER + "/tile_details.csv", index=False)
+        # Save satellite and mask images
+        Image.fromarray(tile["satellite_image"]).save(TILES_FOLDER + SAT_IMAGE_FOLDER + "/" + tile_image_name)
+        mask_im = tile["ground_truth"].astype("uint8")
+        mask_im[mask_im == 1] = 255
+        Image.fromarray(mask_im).save(TILES_FOLDER + MASK_IMAGE_FOLDER + "/" + tile_image_name)
+
 # -
 
 tile = next(all_tiles_display)
@@ -394,14 +388,7 @@ except FileNotFoundError:
     for i, satellite_image in enumerate(PV_locations.image_name.unique()):
         pic = get_image(satellite_image, "tif")
 
-        # Create an empty mask
-        mask = np.zeros(pic.shape[:2]).astype(np.int32)
-
-        # Loop over all PV polygons in this image
-        for polygon in PV_locations[PV_locations.image_name == satellite_image]["polygon_vertices_pixels"].tolist():
-            # Feed polygon into OpenCV to draw onto mask
-            polygon = np.array(polygon).astype(np.int32)
-            cv2.fillConvexPoly(mask, polygon, 1)
+        mask = get_mask(pic, satellite_image)
 
         # Convert to boolean array
         mask = mask.astype(bool)
