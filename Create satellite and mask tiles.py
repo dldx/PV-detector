@@ -20,6 +20,9 @@
 # ---
 
 # + {}
+#!pip install geopandas scikit-image
+
+# + {}
 from skimage import draw
 import json
 import numpy as np
@@ -31,6 +34,7 @@ import cv2
 import itertools
 
 from config import TILE_SIZE, DATA_FOLDER, SAT_IMAGE_FOLDER, MASK_IMAGE_FOLDER, TILES_FOLDER
+import config
 
 # %matplotlib inline
 # -
@@ -299,16 +303,22 @@ def tiles_for_image(image_name, tile_size):
 
 # ### Export satellite and mask tiles as pngs, storing only the ones with PV pixels in them
 
-# + {}
 # Here's a list of all image names
 all_images = PV_locations.image_name.unique()
 # Get tiles of all images
 # The chain function merges all the iterables together into one stream
 all_tiles = itertools.chain.from_iterable((tiles_for_image(image, TILE_SIZE) for image in all_images))
 
+# + {}
+## Uncomment below to just view tiles
 
-# itertools.tee basically caches the generator so it can be used multiple times independently
-#all_tiles_display, all_tiles_save = itertools.tee(all_tiles)
+#tile = next(all_tiles)
+#fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(15,5))
+#plt.suptitle(tile["image_name"])
+#ax1.imshow(tile["satellite_image"])
+#ax2.imshow(tile["ground_truth"], vmin=0, vmax=1)
+#plt.axis("scaled")
+#plt.show()
 
 # + {}
 import random
@@ -362,13 +372,32 @@ for tile in all_tiles:#itertools.islice(all_tiles, 1000):
 
 # -
 
-tile = next(all_tiles_display)
-fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(15,5))
-plt.suptitle(tile["image_name"])
-ax1.imshow(tile["satellite_image"])
-ax2.imshow(tile["ground_truth"], vmin=0, vmax=1)
-plt.axis("scaled")
-plt.show()
+# #### Separate tiles into training and testing sets
+
+# + {"endofcell": "--"}
+import glob
+import shutil
+from sklearn.model_selection import train_test_split
+
+image_filenames = [file.replace(TILES_FOLDER + SAT_IMAGE_FOLDER, "") for file in glob.glob(TILES_FOLDER + SAT_IMAGE_FOLDER + "/*.png")]
+# -
+
+train_set, test_set = train_test_split(image_filenames, test_size=config.TRAIN_TEST_RATIO, random_state=42)
+[os.makedirs(folder, exist_ok=True) for folder in [config.TRAIN_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/", config.TEST_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/",
+                                                 config.TRAIN_IMAGE_FOLDER + config.MASK_IMAGE_FOLDER  + "/0/", config.TEST_IMAGE_FOLDER + config.MASK_IMAGE_FOLDER + "/0/"]]
+
+# #### Move images into relevant directories
+
+# # + {}
+for image_name in train_set:
+    shutil.move(config.TILES_FOLDER + config.SAT_IMAGE_FOLDER + image_name, config.TRAIN_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/" + image_name)
+    shutil.move(config.TILES_FOLDER + config.MASK_IMAGE_FOLDER + image_name, config.TRAIN_IMAGE_FOLDER + config.MASK_IMAGE_FOLDER + "/0/" + image_name)
+    
+for image_name in test_set:
+    shutil.move(config.TILES_FOLDER + config.SAT_IMAGE_FOLDER + image_name, config.TEST_IMAGE_FOLDER + config.SAT_IMAGE_FOLDER + "/0/" + image_name)
+    shutil.move(config.TILES_FOLDER + config.MASK_IMAGE_FOLDER + image_name, config.TEST_IMAGE_FOLDER + config.MASK_IMAGE_FOLDER +  "/0/" + image_name)
+
+# --
 
 # # Prescreening process below
 # This is not in use at the moment
