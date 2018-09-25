@@ -4,6 +4,7 @@
 # Credits Bradbury et al. https://www.nature.com/articles/sdata2016106
 
 mv Example_Data Data
+mv Data/config.py .
 cd Data
 
 wget https://ndownloader.figshare.com/files/6025419 -O SolarArrayPolygons.geojson
